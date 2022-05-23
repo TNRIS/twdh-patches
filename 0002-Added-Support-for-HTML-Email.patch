@@ -1,0 +1,640 @@
+From 88bad311b7cb4115cefa98fccba4d82f431333c6 Mon Sep 17 00:00:00 2001
+From: Ben Bright <ben.bright@twdb.texas.gov>
+Date: Mon, 23 May 2022 09:22:17 -0500
+Subject: [PATCH] Added Support for HTML Email
+
+---
+ ckan/lib/email_notifications.py               |   8 +-
+ ckan/lib/mailer.py                            |  18 +-
+ .../activity_stream_email_notifications.html  |  15 +
+ ckan/templates/emails/base.html               | 420 ++++++++++++++++++
+ ckan/templates/emails/invite_user.html        |  29 ++
+ ckan/templates/emails/reset_password.html     |  22 +
+ ckan/templates/emails/snippets/footer.html    |   0
+ ckan/templates/emails/snippets/header.html    |   0
+ 8 files changed, 502 insertions(+), 10 deletions(-)
+ create mode 100644 ckan/templates/activity_streams/activity_stream_email_notifications.html
+ create mode 100644 ckan/templates/emails/base.html
+ create mode 100644 ckan/templates/emails/invite_user.html
+ create mode 100644 ckan/templates/emails/reset_password.html
+ create mode 100644 ckan/templates/emails/snippets/footer.html
+ create mode 100644 ckan/templates/emails/snippets/header.html
+
+diff --git a/ckan/lib/email_notifications.py b/ckan/lib/email_notifications.py
+index 0552e7970..f621be9c6 100644
+--- a/ckan/lib/email_notifications.py
++++ b/ckan/lib/email_notifications.py
+@@ -106,9 +106,13 @@ def _notifications_for_activities(activities, user_dict):
+     body = base.render(
+             'activity_streams/activity_stream_email_notifications.text',
+             extra_vars={'activities': activities})
++    body_html = base.render(
++            'activity_streams/activity_stream_email_notifications.html',
++            extra_vars={'activities': activities})
+     notifications = [{
+         'subject': subject,
+-        'body': body
++        'body': body,
++        'body_html': body_html
+         }]
+ 
+     return notifications
+@@ -179,7 +183,7 @@ def send_notification(user, email_dict):
+ 
+     try:
+         ckan.lib.mailer.mail_recipient(user['display_name'], user['email'],
+-                email_dict['subject'], email_dict['body'])
++                email_dict['subject'], email_dict['body'], email_dict['body_html'])
+     except ckan.lib.mailer.MailerException:
+         raise
+ 
+diff --git a/ckan/lib/mailer.py b/ckan/lib/mailer.py
+index 780dffd72..7ea4fef09 100644
+--- a/ckan/lib/mailer.py
++++ b/ckan/lib/mailer.py
+@@ -133,7 +133,7 @@ def mail_user(recipient, subject, body, body_html=None, headers={}):
+                    body, body_html=body_html, headers=headers)
+ 
+ 
+-def get_reset_link_body(user):
++def get_reset_link_body(user, kind='txt'):
+     extra_vars = {
+         'reset_link': get_reset_link(user),
+         'site_title': config.get('ckan.site_title'),
+@@ -141,10 +141,10 @@ def get_reset_link_body(user):
+         'user_name': user.name,
+     }
+     # NOTE: This template is translated
+-    return render('emails/reset_password.txt', extra_vars)
++    return render('emails/reset_password.' + kind, extra_vars)
+ 
+ 
+-def get_invite_body(user, group_dict=None, role=None):
++def get_invite_body(user, group_dict=None, role=None, kind='txt'):
+     if group_dict:
+         group_type = (_('organization') if group_dict['is_organization']
+                       else _('group'))
+@@ -162,7 +162,7 @@ def get_invite_body(user, group_dict=None, role=None):
+         extra_vars['group_title'] = group_dict.get('title')
+ 
+     # NOTE: This template is translated
+-    return render('emails/invite_user.txt', extra_vars)
++    return render('emails/invite_user.' + kind, extra_vars)
+ 
+ 
+ def get_reset_link(user):
+@@ -175,7 +175,8 @@ def get_reset_link(user):
+ 
+ def send_reset_link(user):
+     create_reset_key(user)
+-    body = get_reset_link_body(user)
++    body = get_reset_link_body(user, 'txt')
++    body_html = get_reset_link_body(user, 'html')
+     extra_vars = {
+         'site_title': config.get('ckan.site_title')
+     }
+@@ -184,12 +185,13 @@ def send_reset_link(user):
+     # Make sure we only use the first line
+     subject = subject.split('\n')[0]
+ 
+-    mail_user(user, subject, body)
++    mail_user(user, subject, body, body_html)
+ 
+ 
+ def send_invite(user, group_dict=None, role=None):
+     create_reset_key(user)
+-    body = get_invite_body(user, group_dict, role)
++    body = get_invite_body(user, group_dict, role, 'txt')
++    body_html = get_invite_body(user, group_dict, role, 'html')
+     extra_vars = {
+         'site_title': config.get('ckan.site_title')
+     }
+@@ -198,7 +200,7 @@ def send_invite(user, group_dict=None, role=None):
+     # Make sure we only use the first line
+     subject = subject.split('\n')[0]
+ 
+-    mail_user(user, subject, body)
++    mail_user(user, subject, body, body_html)
+ 
+ 
+ def create_reset_key(user):
+diff --git a/ckan/templates/activity_streams/activity_stream_email_notifications.html b/ckan/templates/activity_streams/activity_stream_email_notifications.html
+new file mode 100644
+index 000000000..9545825bc
+--- /dev/null
++++ b/ckan/templates/activity_streams/activity_stream_email_notifications.html
+@@ -0,0 +1,15 @@
++{% extends "emails/base.html" %}
++{% block content %}
++<p>
++{% set num = activities|length %}{{ ungettext("You have {num} new activity on your {site_title} dashboard", "You have {num} new activities on your {site_title} dashboard", num).format(site_title=g.site_title, num=num) }} {{ _('To view your dashboard, click on this link:') }}
++</p>
++<p>
++{{ g.site_url + '/dashboard' }}
++</p>
++<p>
++{{ _('You can turn off these email notifications in your {site_title} preferences. To change your preferences, click on this link:').format(site_title=g.site_title) }}
++</p>
++<p>
++{{ g.site_url + '/user/edit' }}
++</p>
++{% endblock %}
+diff --git a/ckan/templates/emails/base.html b/ckan/templates/emails/base.html
+new file mode 100644
+index 000000000..5df7c6688
+--- /dev/null
++++ b/ckan/templates/emails/base.html
+@@ -0,0 +1,420 @@
++{% block html %}
++<!doctype html>
++<html>
++  <head>
++    <meta name="viewport" content="width=device-width">
++    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++    <title>{{ TITLE }}</title>
++    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Quicksand">
++    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lora">   
++    <style>
++ 
++    /* -------------------------------------
++          GLOBAL RESETS
++      ------------------------------------- */
++      
++      /*All the styling goes here*/
++      
++      img {
++        border: none;
++        -ms-interpolation-mode: bicubic;
++        max-width: 100%; 
++      }
++
++      body {
++        background-color: #F9F9FB;
++        font-family: sans-serif;
++        -webkit-font-smoothing: antialiased;
++        font-size: 14px;
++        line-height: 1.4;
++        margin: 0;
++        padding: 0;
++        -ms-text-size-adjust: 100%;
++        -webkit-text-size-adjust: 100%; 
++      }
++
++      table {
++        border-collapse: separate;
++        mso-table-lspace: 0pt;
++        mso-table-rspace: 0pt;
++        width: 100%; }
++        table td {
++          font-family: sans-serif;
++          font-size: 14px;
++          vertical-align: top; 
++      }
++
++      /* -------------------------------------
++          BODY & CONTAINER
++      ------------------------------------- */
++
++      .body {
++        background-color: #F9F9FB;
++        width: 100%; 
++      }
++
++      /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
++      .container {
++        display: block;
++        margin: 0 auto !important;
++        /* makes it centered */
++        max-width: 580px;
++        padding: 10px;
++        width: 580px; 
++      }
++
++      /* This should also be a block element, so that it will fill 100% of the .container */
++      .content {
++        box-sizing: border-box;
++        display: block;
++        margin: 0 auto;
++        max-width: 580px;
++        padding: 10px; 
++      }
++
++      /* -------------------------------------
++          HEADER, FOOTER, MAIN
++      ------------------------------------- */
++      .main {
++        background: #ffffff;
++        border-radius: 3px;
++        width: 100%; 
++      }
++
++      .wrapper {
++        box-sizing: border-box;
++        padding: 20px; 
++      }
++
++      .content-block {
++        padding-bottom: 10px;
++        padding-top: 10px;
++      }
++
++      .footer {
++        clear: both;
++        margin-top: 10px;
++        text-align: center;
++        width: 100%; 
++      }
++        .footer td,
++        .footer p,
++        .footer span,
++        .footer a {
++          color: #A39CA5;
++          font-size: 12px;
++          text-align: center; 
++      }
++
++      /* -------------------------------------
++          TYPOGRAPHY
++      ------------------------------------- */
++      h1,
++      h2,
++      h3,
++      h4 {
++        color: #000000;
++        font-family: sans-serif;
++        font-weight: 400;
++        line-height: 1.4;
++        margin: 0;
++        margin-bottom: 30px; 
++      }
++
++      h1 {
++        font-size: 35px;
++        font-weight: 300;
++        text-align: center;
++        text-transform: capitalize; 
++      }
++
++      p,
++      ul,
++      ol {
++        font-family: sans-serif;
++        font-size: 14px;
++        font-weight: normal;
++        margin: 0;
++        margin-bottom: 15px; 
++      }
++        p li,
++        ul li,
++        ol li {
++          list-style-position: inside;
++          margin-left: 5px; 
++      }
++
++      a {
++        color: #0D2856;
++        text-decoration: underline; 
++      }
++
++      /* -------------------------------------
++          BUTTONS
++      ------------------------------------- */
++      .btn {
++        box-sizing: border-box;
++        width: 100%; }
++        .btn > tbody > tr > td {
++          padding-bottom: 15px; }
++        .btn table {
++          width: auto; 
++      }
++        .btn table td {
++          background-color: #ffffff;
++          border-radius: 5px;
++          text-align: center; 
++      }
++        .btn a {
++          background-color: #ffffff;
++          border: solid 1px #0D2856;
++          border-radius: 5px;
++          box-sizing: border-box;
++          color: #0D2856;
++          cursor: pointer;
++          display: inline-block;
++          font-size: 14px;
++          font-weight: bold;
++          margin: 0;
++          padding: 12px 25px;
++          text-decoration: none;
++          text-transform: capitalize; 
++      }
++
++      .btn-primary table td {
++        background-color: #0D2856; 
++      }
++
++      .btn-primary a {
++        background-color: #0D2856;
++        border-color: #0D2856;
++        color: #ffffff; 
++      }
++
++      /* -------------------------------------
++          OTHER STYLES THAT MIGHT BE USEFUL
++      ------------------------------------- */
++      .last {
++        margin-bottom: 0; 
++      }
++
++      .first {
++        margin-top: 0; 
++      }
++
++      .align-center {
++        text-align: center; 
++      }
++
++      .align-right {
++        text-align: right; 
++      }
++
++      .align-left {
++        text-align: left; 
++      }
++
++      .clear {
++        clear: both; 
++      }
++
++      .mt0 {
++        margin-top: 0; 
++      }
++
++      .mb0 {
++        margin-bottom: 0; 
++      }
++
++      .preheader {
++        color: transparent;
++        display: none;
++        height: 0;
++        max-height: 0;
++        max-width: 0;
++        opacity: 0;
++        overflow: hidden;
++        mso-hide: all;
++        visibility: hidden;
++        width: 0; 
++      }
++
++      .powered-by a {
++        text-decoration: none; 
++      }
++
++      hr {
++        border: 0;
++        border-bottom: 1px solid #f6f6f6;
++        margin: 20px 0; 
++      }
++
++      /* -------------------------------------
++          RESPONSIVE AND MOBILE FRIENDLY STYLES
++      ------------------------------------- */
++      @media only screen and (max-width: 620px) {
++        table.body h1 {
++          font-size: 28px !important;
++          margin-bottom: 10px !important; 
++        }
++        table.body p,
++        table.body ul,
++        table.body ol,
++        table.body td,
++        table.body span,
++        table.body a {
++          font-size: 16px !important; 
++        }
++        table.body .wrapper,
++        table.body .article {
++          padding: 10px !important; 
++        }
++        table.body .content {
++          padding: 0 !important; 
++        }
++        table.body .container {
++          padding: 0 !important;
++          width: 100% !important; 
++        }
++        table.body .main {
++          border-left-width: 0 !important;
++          border-radius: 0 !important;
++          border-right-width: 0 !important; 
++        }
++        table.body .btn table {
++          width: 100% !important; 
++        }
++        table.body .btn a {
++          width: 100% !important; 
++        }
++        table.body .img-responsive {
++          height: auto !important;
++          max-width: 100% !important;
++          width: auto !important; 
++        }
++      }
++
++      /* -------------------------------------
++          PRESERVE THESE STYLES IN THE HEAD
++      ------------------------------------- */
++      @media all {
++        .ExternalClass {
++          width: 100%; 
++        }
++        .ExternalClass,
++        .ExternalClass p,
++        .ExternalClass span,
++        .ExternalClass font,
++        .ExternalClass td,
++        .ExternalClass div {
++          line-height: 100%; 
++        }
++        .apple-link a {
++          color: inherit !important;
++          font-family: inherit !important;
++          font-size: inherit !important;
++          font-weight: inherit !important;
++          line-height: inherit !important;
++          text-decoration: none !important; 
++        }
++        #MessageViewBody a {
++          color: inherit;
++          text-decoration: none;
++          font-size: inherit;
++          font-family: inherit;
++          font-weight: inherit;
++          line-height: inherit;
++        }
++        .btn-primary table td:hover {
++          background-color: #0D2856 !important; 
++        }
++        .btn-primary a:hover {
++          background-color: #0D2856 !important;
++          border-color: #0D2856 !important; 
++        } 
++      }
++    </style>
++  </head>
++  <body class="" style="background-color: #f6f6f6; font-family: Quicksand, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 14px; line-height: 1.4; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%;">
++    <table border="0" cellpadding="0" cellspacing="0" class="body" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; background-color: #f6f6f6;">
++      <tr>
++        <td style="font-family: Quicksand, Helvetica, Arial, sans-serif; font-size: 14px; vertical-align: top;">&nbsp;</td>
++        <td class="container" style="font-family: Quicksand, Helvetica, Arial, sans-serif; font-size: 14px; vertical-align: top; display: block; margin: 0 auto; max-width: 580px; padding: 10px; width: 580px;">
++          <div class="content" style="box-sizing: border-box; display: block; margin: 0 auto; max-width: 580px; padding: 10px;">
++
++            <!-- START CENTERED WHITE CONTAINER -->
++            <span class="preheader" style="color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;">This is preheader text. Some clients will show this text as a preview.</span>
++
++            <!-- START HEADER -->
++            <div class="header" style="clear: both; margin-top: 10px; text-align: center; width: 100%;">
++                <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;">
++                  <tr>
++                    <td class="content-block" style="font-family: Quicksand, Helvetica, Arial, sans-serif; vertical-align: top; padding-bottom: 10px; padding-top: 10px; font-size: 12px; color: #999999; text-align: left;">
++                      <span class="apple-link" style="color: #999999; font-size: 12px; text-align: center;"><a href="{{ APP_URL }}" style="text-decoration: none; color: #999999;">
++                        <img src="{{ h.url_for( 'home', _external = True ) }}/base/images/hub_logo.png">
++                      </a></span>
++                    </td>
++                  </tr>
++                  <tr>
++                    <td style="font-family: Quicksand, Helvetica, Arial, sans-serif; vertical-align: top; font-size: 12px; color: #999999; text-align: center;">
++                    {% block header %}<!-- header content area -->{% endblock %}                    
++                    </td>
++                  </tr>
++                </table>
++              </div>
++              <!-- END HEADER -->
++  
++            <table class="main" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; background: #ffffff; border-radius: 3px;">
++
++              <!-- START MAIN CONTENT AREA -->
++              <tr>
++                <td class="wrapper" style="font-family: Quicksand, Helvetica, Arial, sans-serif; font-size: 14px; vertical-align: top; box-sizing: border-box; padding: 20px;">
++                  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;">
++                    <tr>
++                      <td style="font-family: Quicksand, Helvetica, Arial, sans-serif; font-size: 14px; vertical-align: top;">
++                        {% block content %}<!-- main content area -->{% endblock %}
++                      </td>
++                    </tr>
++                  </table>
++                </td>
++              </tr>
++
++            <!-- END MAIN CONTENT AREA -->
++            </table>
++
++            <!-- START FOOTER -->
++            <div class="footer" style="clear: both; margin-top: 10px; text-align: center; width: 100%;">
++              <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;">
++                <tr>
++                  <td class="content-block" style="font-family: Quicksand, Helvetica, Arial, sans-serif; vertical-align: top; padding-bottom: 10px; padding-top: 10px; font-size: 12px; color: #999999; text-align: center;">
++                    <span class="apple-link" style="color: #999999; font-size: 12px; text-align: center;">
++                        <a href="{{ h.url_for( 'home', _external = True ) }}" style="text-decoration: none; color: #999999;">
++                            <img src="{{ h.url_for( 'home', _external = True ) }}/base/images/hub_logo.png">
++                        </a>
++                    </span>
++                    <br/>
++                    <span class="apple-link" style="color: #999999; font-size: 12px; text-align: center;">
++                        visit <a href="{{ h.url_for( 'home', _external = True ) }}" style="text-decoration: none; color: #999999;">
++                            {{ h.strip_url( h.url_for( 'home', _external = True ) ) }}
++                        </a>
++                    </span>
++                </td>
++                </tr>
++                <tr>
++                  <td style="font-family: Quicksand, Helvetica, Arial, sans-serif; vertical-align: top; font-size: 12px; color: #999999; text-align: center;">
++                  {% block footer %}<!-- footer content area -->{% endblock %}
++                  </td>
++                </tr>
++              </table>
++            </div>
++            <!-- END FOOTER -->
++
++          <!-- END CENTERED WHITE CONTAINER -->
++          </div>
++        </td>
++        <td style="font-family: Quicksand, Helvetica, Arial, sans-serif; font-size: 14px; vertical-align: top;">&nbsp;</td>
++      </tr>
++    </table>
++  </body>
++</html>
++{% endblock %}
+\ No newline at end of file
+diff --git a/ckan/templates/emails/invite_user.html b/ckan/templates/emails/invite_user.html
+new file mode 100644
+index 000000000..c97add83d
+--- /dev/null
++++ b/ckan/templates/emails/invite_user.html
+@@ -0,0 +1,29 @@
++{% extends "emails/base.html" %}
++{% block content %}
++<p>
++Dear {{ user_name }},
++</p>
++<p>
++You have been invited to {{ site_title }}.
++</p>
++<p>
++A user has already been created for you with the username {{ user_name }}. You can change it later.
++</p>
++<p>
++You have been added to the {{ group_type }} {{ group_title }} with the following role: {{ role_name }}.
++</p>
++<p>
++To accept this invite, please reset your password at:
++</p>
++<p>
++<blockquote>
++  <a href="{{ reset_link }}">{{ reset_link }}</a>
++</blockquote>
++<p>
++Have a nice day.
++</p>
++<p>
++--<br/>
++Message sent by {{ site_title }} ({{ site_url }})
++</p>
++{% endblock %}
+diff --git a/ckan/templates/emails/reset_password.html b/ckan/templates/emails/reset_password.html
+new file mode 100644
+index 000000000..cfc913339
+--- /dev/null
++++ b/ckan/templates/emails/reset_password.html
+@@ -0,0 +1,22 @@
++{% extends "emails/base.html" %}
++{% block content %}
++<p>
++Dear {{ user_name }},
++</p>
++<p>
++You have requested your password on {{ site_title }} to be reset.
++</p>
++<p>
++Please click the following link to confirm this request:
++</p>
++<blockquote>
++  <a href="{{ reset_link }}">{{ reset_link }}</a>
++</blockquote>
++<p>
++Have a nice day.
++</p>
++<p>
++--<br/>
++Message sent by {{ site_title }} ({{ site_url }})
++</p>
++{% endblock %}
+diff --git a/ckan/templates/emails/snippets/footer.html b/ckan/templates/emails/snippets/footer.html
+new file mode 100644
+index 000000000..e69de29bb
+diff --git a/ckan/templates/emails/snippets/header.html b/ckan/templates/emails/snippets/header.html
+new file mode 100644
+index 000000000..e69de29bb
+-- 
+2.25.1
+
