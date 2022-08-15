@@ -23,7 +23,7 @@
     * ckan/templates/emails/snippets/footer.html
     * ckan/templates/emails/snippets/header.html
 * 0003-ckanext-security-middleware.patch
-  * This patch is based on the original [ckanext-security patch](https://github.com/data-govt-nz/ckanext-security/blob/master/ckanext-security.patch) file but updated for CKAN 2.9.5
+  * This patch is based on the original [ckanext-security](https://github.com/data-govt-nz/ckanext-security) [patch file](https://github.com/data-govt-nz/ckanext-security/blob/master/ckanext-security.patch) but updated for CKAN 2.9.5
   * 2 files changed, 12 insertions(+), 2 deletions(-)
     * /ckan/config/middleware/flask_app.py
     * /ckan/config/middleware/pylons_app.py
