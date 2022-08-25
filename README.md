@@ -27,3 +27,8 @@
   * 2 files changed, 12 insertions(+), 2 deletions(-)
     * /ckan/config/middleware/flask_app.py
     * /ckan/config/middleware/pylons_app.py
+* 0004-Welcome-Email-on-Invite-Acceptance.patch
+  * When a user is invited to join CKAN, they receive an invitation email with a link to reset their password. When they reset the password and optionally modify their username, their account 'state' is changed from 'pending' to 'active' AND with this patch a welcome email also gets sent.
+  * 1 file changed, 16 insertions(+)
+    * /ckan/views/user.py
+  

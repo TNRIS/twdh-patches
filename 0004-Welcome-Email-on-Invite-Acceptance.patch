@@ -1,0 +1,44 @@
+From 30a319276b949fcd24c6299fb77cf02621cda5e3 Mon Sep 17 00:00:00 2001
+From: Ben Bright <ben.bright@twdb.texas.gov>
+Date: Thu, 25 Aug 2022 13:21:32 -0500
+Subject: [PATCH] Added welcome email that gets sent upon accepting an invite
+
+When a user is invited to join CKAN, they receive an invitation
+email with a link to reset their password. When they reset the
+password and optionally modify their username, their account
+'state' is changed from 'pending' to 'active' AND with this
+patch a welcome email also gets sent.
+---
+ ckan/views/user.py | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/ckan/views/user.py b/ckan/views/user.py
+index b94324232..f13c95ea1 100644
+--- a/ckan/views/user.py
++++ b/ckan/views/user.py
+@@ -735,6 +735,22 @@ class PerformResetView(MethodView):
+             logic.get_action(u'user_update')(context, user_dict)
+             mailer.create_reset_key(context[u'user_obj'])
+ 
++            # if user_state is 'pending', this was a response to an invite,
++            # so a welcome message is sent
++            if user_state == 'pending':
++                name = user_dict['fullname'] or user_dict['name']
++                email = user_dict['email']
++                subject = 'Welcome to the Texas Water Data Hub'
++                extra_vars = {
++                    'login_link': '/user/login',
++                    'site_title': config.get('ckan.site_title'),
++                    'site_url': config.get('ckan.site_url'),
++                    'user_name': name
++                }
++                body = base.render('emails/welcome_user.txt', extra_vars)
++                body_html = base.render('emails/welcome_user.html', extra_vars)
++                mailer.mail_recipient(name, email, subject, body, body_html)
++
+             h.flash_success(_(u'Your password has been reset.'))
+             return h.redirect_to(u'home.index')
+         except logic.NotAuthorized:
+-- 
+2.25.1
+
