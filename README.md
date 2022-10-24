@@ -31,4 +31,11 @@
   * When a user is invited to join CKAN, they receive an invitation email with a link to reset their password. When they reset the password and optionally modify their username, their account 'state' is changed from 'pending' to 'active' AND with this patch a welcome email also gets sent.
   * 1 file changed, 16 insertions(+)
     * /ckan/views/user.py
-  
+* 0005-Added-check-for-content-type-header-in-proxy_resource.patch
+  * If a file requested from a remote server does not have 'content-type' set int he header, CKAN was crashing with a Flask stack trace. This patch catches this error and instead displays a 409 error to the user
+  * 1 file changed, 9 insertions(+), 1 deletion(-)
+    * ckanext/resourceproxy/blueprint.py 
+* 0006-Added-cc-bcc-reply-to-to-mail_recipients.patch  
+  * This patch adds the ability to cc and bcc, and override the default reply-to in the mail_recipients function in lib/mailer.py
+  * 1 file changed, 10 insertions(+), 5 deletions(-)
+    * ckan/lib/mailer.py

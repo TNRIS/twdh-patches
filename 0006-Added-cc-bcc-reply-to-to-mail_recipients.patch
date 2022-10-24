@@ -1,0 +1,65 @@
+From 99ef84fb24bebb2700a963df36ba4a1702ca5ec7 Mon Sep 17 00:00:00 2001
+From: Ben Bright <ben.bright@twdb.texas.gov>
+Date: Mon, 24 Oct 2022 09:32:09 -0500
+Subject: [PATCH] Added cc, bcc, reply-to to mail_recipients()
+
+Added cc, bcc, reply-to capability to mail_recipients() in lib/mailer.py
+---
+ ckan/lib/mailer.py | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/ckan/lib/mailer.py b/ckan/lib/mailer.py
+index 7ea4fef09..c67bf8e8d 100644
+--- a/ckan/lib/mailer.py
++++ b/ckan/lib/mailer.py
+@@ -31,7 +31,8 @@ class MailerException(Exception):
+ 
+ def _mail_recipient(recipient_name, recipient_email,
+                     sender_name, sender_url, subject,
+-                    body, body_html=None, headers=None):
++                    body, body_html=None, headers=None,
++                    cc=None, bcc=None):
+ 
+     if not headers:
+         headers = {}
+@@ -59,7 +60,7 @@ def _mail_recipient(recipient_name, recipient_email,
+     msg['To'] = u"%s <%s>" % (recipient_name, recipient_email)
+     msg['Date'] = utils.formatdate(time())
+     msg['X-Mailer'] = "CKAN %s" % ckan.__version__
+-    if reply_to and reply_to != '':
++    if reply_to and reply_to != '' and not msg['Reply-to']:
+         msg['Reply-to'] = reply_to
+ 
+     # Send the email using Python's smtplib.
+@@ -104,7 +105,9 @@ def _mail_recipient(recipient_name, recipient_email,
+                                    "smtp.password must be configured as well.")
+             smtp_connection.login(smtp_user, smtp_password)
+ 
+-        smtp_connection.sendmail(mail_from, [recipient_email], msg.as_string())
++        recipients = [recipient_email] + cc + bcc
++
++        smtp_connection.sendmail(mail_from, recipients, msg.as_string())
+         log.info("Sent email to {0}".format(recipient_email))
+ 
+     except smtplib.SMTPException as e:
+@@ -116,13 +119,15 @@ def _mail_recipient(recipient_name, recipient_email,
+ 
+ 
+ def mail_recipient(recipient_name, recipient_email, subject,
+-                   body, body_html=None, headers={}):
++                   body, body_html=None, headers={},
++                   cc=[], bcc=[]):
+     '''Sends an email'''
+     site_title = config.get('ckan.site_title')
+     site_url = config.get('ckan.site_url')
+     return _mail_recipient(recipient_name, recipient_email,
+                            site_title, site_url, subject, body,
+-                           body_html=body_html, headers=headers)
++                           body_html=body_html, headers=headers,
++                           cc=cc, bcc=bcc)
+ 
+ 
+ def mail_user(recipient, subject, body, body_html=None, headers={}):
+-- 
+2.25.1
+
