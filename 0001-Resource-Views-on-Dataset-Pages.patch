@@ -1,19 +1,18 @@
-From 8ec69dbca34295f7c13b148a11d5c24584626cf8 Mon Sep 17 00:00:00 2001
+From 65493993e58f0af60a69608553fbffaaec817bcc Mon Sep 17 00:00:00 2001
 From: Ben Bright <ben.bright@twdb.texas.gov>
-Date: Mon, 23 May 2022 08:53:30 -0500
-Subject: [PATCH] Resource Views on Dataset Pages
+Date: Fri, 17 Feb 2023 17:45:16 +0000
+Subject: [PATCH] Changes for patch
+ 0001-ckanext-Resource-Views-on-Dataset-Pages on 2.9.8
 
-Updated read() function in ckan/views/dataset.py to allow for
-resource views to be shown on the dataset detail pages
 ---
- ckan/views/dataset.py | 40 +++++++++++++++++++++++++++++++---------
- 1 file changed, 31 insertions(+), 9 deletions(-)
+ ckan/views/dataset.py | 36 ++++++++++++++++++++++++++++--------
+ 1 file changed, 28 insertions(+), 8 deletions(-)
 
 diff --git a/ckan/views/dataset.py b/ckan/views/dataset.py
-index e057dcaab..ebde0519d 100644
+index 5f32faa221..5f87beb7ab 100644
 --- a/ckan/views/dataset.py
 +++ b/ckan/views/dataset.py
-@@ -484,14 +484,35 @@ def read(package_type, id):
+@@ -484,14 +484,33 @@ def read(package_type, id):
                               id=pkg_dict['name'],
                               activity_id=activity_id)
  
@@ -25,17 +24,16 @@ index e057dcaab..ebde0519d 100644
 -            }
 -        )
 -        resource[u'has_views'] = len(resource_views) > 0
-+
 +    if len( pkg_dict[u'resources'] ) > 0:
-+
 +        # can the resources be previewed?
-+        for resource in pkg_dict[u'resources'][0:1]:
++        for resource in pkg_dict[u'resources']:
 +            resource_views = get_action(u'resource_view_list')(
 +                context, {
 +                    u'id': resource[u'id']
 +                }
 +            )
 +            resource[u'has_views'] = len(resource_views) > 0
++
 +            resource[u'resource_views'] = resource_views
 +
 +            current_resource_view = None
@@ -53,11 +51,10 @@ index e057dcaab..ebde0519d 100644
 +                    current_resource_view = resource_views[0]
 +    else:
 +        current_resource_view = None
-+
  
      package_type = pkg_dict[u'type'] or package_type
      _setup_template_variables(context, {u'id': id}, package_type=package_type)
-@@ -500,10 +521,11 @@ def read(package_type, id):
+@@ -500,6 +519,7 @@ def read(package_type, id):
      try:
          return base.render(
              template, {
@@ -65,11 +62,6 @@ index e057dcaab..ebde0519d 100644
                  u'dataset_type': package_type,
                  u'pkg_dict': pkg_dict,
                  u'pkg': pkg,  # NB deprecated - it is the current version of
--                              # the dataset, so ignores activity_id
-+                           # the dataset, so ignores activity_id
-                 u'is_activity_archive': bool(activity_id),
-             }
-         )
 -- 
 2.25.1
 
