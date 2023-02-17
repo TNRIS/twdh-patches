@@ -2,7 +2,7 @@
 
 ## Notes
 
-* Note that __main__ currently consists of patches against CKAN 2.9.8
+* __main__ currently contains patches against CKAN 2.9.8
 * We will not create a tag for __v2.9.8__ until we do another upgrade, in case there are changes to existing patches or new patches are added applying to v2.9.8
 * If you need patches against CKAN 2.9.5, be sure to pull using the __v2.9.5__ tag.
 
