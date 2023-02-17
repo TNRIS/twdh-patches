@@ -1,8 +1,12 @@
 # twdh-patches
 
-* Note that _main_ currently consists of patches against CKAN 2.9.8
-* We will not create a tag for _v2.9.8_ until we do another upgrade, in case there are changes to existing patches or new patches are added applying to v2.9.8
-* If you need patches against CKAN 2.9.5, be sure to pull using the _v2.9.5_ tag.
+## Notes
+
+* Note that __main__ currently consists of patches against CKAN 2.9.8
+* We will not create a tag for __v2.9.8__ until we do another upgrade, in case there are changes to existing patches or new patches are added applying to v2.9.8
+* If you need patches against CKAN 2.9.5, be sure to pull using the __v2.9.5__ tag.
+
+## Table of Patches
 
 * 0001-Resource-Views-on-Dataset-Pages.patch  
   * Updated read() function in ckan/views/dataset.py to allow for resource views to be shown on the dataset detail pages
