@@ -1,25 +1,22 @@
-From 30a319276b949fcd24c6299fb77cf02621cda5e3 Mon Sep 17 00:00:00 2001
+From 86d4eeb0592849acf70d0a06885350f2858d0060 Mon Sep 17 00:00:00 2001
 From: Ben Bright <ben.bright@twdb.texas.gov>
-Date: Thu, 25 Aug 2022 13:21:32 -0500
-Subject: [PATCH] Added welcome email that gets sent upon accepting an invite
+Date: Fri, 17 Feb 2023 18:47:50 +0000
+Subject: [PATCH] Changes for patch 0004-Welcome-Email-on-Invite-Acceptance on
+ 2.9.8
 
-When a user is invited to join CKAN, they receive an invitation
-email with a link to reset their password. When they reset the
-password and optionally modify their username, their account
-'state' is changed from 'pending' to 'active' AND with this
-patch a welcome email also gets sent.
 ---
- ckan/views/user.py | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ ckan/views/user.py | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
 diff --git a/ckan/views/user.py b/ckan/views/user.py
-index b94324232..f13c95ea1 100644
+index b09b2faff4..2684a79c0d 100644
 --- a/ckan/views/user.py
 +++ b/ckan/views/user.py
-@@ -735,6 +735,22 @@ class PerformResetView(MethodView):
-             logic.get_action(u'user_update')(context, user_dict)
+@@ -746,6 +746,23 @@ class PerformResetView(MethodView):
+                     {u"id": user_dict[u'id'], u"state": model.State.ACTIVE}
+                 )
              mailer.create_reset_key(context[u'user_obj'])
- 
++
 +            # if user_state is 'pending', this was a response to an invite,
 +            # so a welcome message is sent
 +            if user_state == 'pending':
