@@ -1,21 +1,15 @@
-From 7a4a6b48e57a8b94465c7561ff5f9bb4f907c797 Mon Sep 17 00:00:00 2001
+From f5d90753363caae81ea681f6d3152420fc94cb01 Mon Sep 17 00:00:00 2001
 From: Ben Bright <ben.bright@twdb.texas.gov>
-Date: Thu, 8 Sep 2022 08:04:17 -0500
-Subject: [PATCH] Added check for content-type header in proxy_resource()
+Date: Fri, 17 Feb 2023 18:54:27 +0000
+Subject: [PATCH] Changes for patch
+ 0005-Added-check-for-content-type-header-in-proxy_resource on 2.9.8
 
-proxy_resource was failing with a KeyError in the case that the remote
-server was misconfigured to not include a content-type header on the
-file being proxied. In my case it was due to an Apache server not
-configured with an AddType statement to serve geojson files correctly.
-
-This commit adds a check to avoid the KeyError and abort with a 409 error
-when this happens.
 ---
  ckanext/resourceproxy/blueprint.py | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/ckanext/resourceproxy/blueprint.py b/ckanext/resourceproxy/blueprint.py
-index 8ea9efa73..65501b581 100644
+index 8ea9efa73b..65501b581c 100644
 --- a/ckanext/resourceproxy/blueprint.py
 +++ b/ckanext/resourceproxy/blueprint.py
 @@ -68,7 +68,15 @@ def proxy_resource(context, data_dict):
