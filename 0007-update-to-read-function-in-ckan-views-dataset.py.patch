@@ -1,0 +1,27 @@
+From c9df96e19430b95996a05c108db2fb211826fc0e Mon Sep 17 00:00:00 2001
+From: Ben Bright <ben.bright@twdb.texas.gov>
+Date: Fri, 31 Mar 2023 20:19:01 +0000
+Subject: [PATCH] update to read() function in ckan/views/dataset.py
+
+Added break statement when looking for the current resource
+view so that the first instead of the last view is chosen
+when a current_view isn't set
+---
+ ckan/views/dataset.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ckan/views/dataset.py b/ckan/views/dataset.py
+index 5f87beb7ab..f673505e11 100644
+--- a/ckan/views/dataset.py
++++ b/ckan/views/dataset.py
+@@ -509,6 +509,7 @@ def read(package_type, id):
+                         return base.abort(404, _(u'Resource view not found'))
+                 else:
+                     current_resource_view = resource_views[0]
++                break
+     else:
+         current_resource_view = None
+ 
+-- 
+2.25.1
+
